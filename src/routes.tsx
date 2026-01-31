@@ -1,4 +1,5 @@
-import SamplePage from './pages/SamplePage';
+import MusicList from './pages/MusicList';
+import MusicPlayer from './pages/MusicPlayer';
 import type { ReactNode } from 'react';
 
 interface RouteConfig {
@@ -10,9 +11,15 @@ interface RouteConfig {
 
 const routes: RouteConfig[] = [
   {
-    name: 'Sample Page',
+    name: 'Music List',
     path: '/',
-    element: <SamplePage />
+    element: <MusicList />
+  },
+  {
+    name: 'Music Player',
+    path: '/player',
+    element: <MusicPlayer />,
+    visible: false
   }
 ];
 
