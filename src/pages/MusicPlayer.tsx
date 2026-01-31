@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Pause, Play, SkipBack, SkipForward, Volume2, VolumeX, Music } from 'lucide-react';
 import { useAudio } from '@/contexts/AudioContext';
 import { Button } from '@/components/ui/button';

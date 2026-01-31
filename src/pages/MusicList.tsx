@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 import { Music, Moon, Sun, Trash2 } from 'lucide-react';
 import { songsApi } from '@/db/api';
 import { useAudio } from '@/contexts/AudioContext';
