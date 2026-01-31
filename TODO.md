@@ -11,18 +11,19 @@
 - [x] Step 8: Add automatic phone storage scanning
 - [x] Step 9: Fix auto-play issue on app load
 - [x] Step 10: Add comprehensive debugging for file scanning
-  - [x] Add detailed console logging at every step
-  - [x] Add permission verification before scanning
-  - [x] Add detailed file information logging
-  - [x] Add extension matching verification
-  - [x] Add comprehensive error messages for users
-- [x] Step 11: Run lint and fix issues
+- [x] Step 11: Replace directory picker with manual file upload
+  - [x] Remove File System Access API (directory picker)
+  - [x] Add simple file input for multiple file selection
+  - [x] Process selected files and extract metadata
+  - [x] Save to localStorage
+  - [x] Add clear all function
+- [x] Step 12: Run lint and fix issues
 
 ## Notes
-- Comprehensive debugging system added
-- Every step of scanning process is logged
-- Permission status checked before scanning
-- File details (name, size, type, lastModified) logged
-- Extension matching process visible in console
-- User-friendly error messages with troubleshooting steps
+- Manual file upload implemented
+- Users can select multiple audio files at once
+- Metadata extracted from filename (Artist - Title format)
+- Files stored in memory using object URLs
+- Simple and compatible approach
 - Support for 9 audio formats: mp3, wav, ogg, m4a, aac, flac, wma, opus, webm
+- All UI text in Uzbek language

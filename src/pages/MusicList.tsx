@@ -1,22 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Music, Moon, Sun, FolderOpen, RefreshCw } from 'lucide-react';
+import { Music, Moon, Sun, Upload, RefreshCw } from 'lucide-react';
 import { songsApi } from '@/db/api';
 import { useAudio } from '@/contexts/AudioContext';
 import { SongItem } from '@/components/music/SongItem';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useTheme } from 'next-themes';
 import type { Song } from '@/types';
 import { 
   initIndexedDB,
-  getDirectoryHandle,
-  requestMusicDirectoryAccess,
-  verifyDirectoryPermission,
-  scanMusicDirectory,
-  clearDirectoryAccess
+  saveLocalSongs,
+  getLocalSongs,
 } from '@/db/localStorageDb';
 
 export default function MusicList() {
@@ -26,9 +22,9 @@ export default function MusicList() {
   const [onlineSongs, setOnlineSongs] = useState<Song[]>([]);
   const [localSongs, setLocalSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
-  const [scanning, setScanning] = useState(false);
-  const [hasDirectoryAccess, setHasDirectoryAccess] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [activeTab, setActiveTab] = useState('local');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadAllSongs();
@@ -46,34 +42,23 @@ export default function MusicList() {
     if (!hasAskedPermission) {
       // First time - show permission dialog
       const userConsent = confirm(
-        'Telefon xotirangizdagi barcha musiqalarga kirish uchun ruxsat berasizmi?\n\n' +
-        'Ha - Barcha musiqalaringiz avtomatik yuklanadi\n' +
+        'Telefon xotirangizdagi musiqalarni qo\'lda yuklashni xohlaysizmi?\n\n' +
+        'Ha - Musiqa fayllarini tanlash oynasi ochiladi\n' +
         'Yo\'q - Faqat onlayn musiqalardan foydalanasiz'
       );
       
       localStorage.setItem('music-permission-asked', 'true');
       
       if (userConsent) {
-        // User agreed - request directory access
-        const dirHandle = await requestMusicDirectoryAccess();
-        if (dirHandle) {
-          setHasDirectoryAccess(true);
-          await scanDirectory(dirHandle);
-        }
+        // User agreed - open file picker
+        setTimeout(() => {
+          fileInputRef.current?.click();
+        }, 500);
       }
     } else {
-      // Not first time - check for existing directory access
-      const dirHandle = await getDirectoryHandle();
-      if (dirHandle) {
-        const hasPermission = await verifyDirectoryPermission(dirHandle);
-        if (hasPermission) {
-          setHasDirectoryAccess(true);
-          // Automatically scan directory
-          await scanDirectory(dirHandle);
-        } else {
-          setHasDirectoryAccess(false);
-        }
-      }
+      // Load existing local songs
+      const local = getLocalSongs();
+      setLocalSongs(local);
     }
     
     // Load online songs
@@ -83,77 +68,108 @@ export default function MusicList() {
     setLoading(false);
   };
 
-  const scanDirectory = async (dirHandle: FileSystemDirectoryHandle) => {
-    setScanning(true);
-    console.log('=== MusicList: Papkani skanerlash boshlandi ===');
-    console.log('Directory handle:', dirHandle);
-    
-    try {
-      const songs = await scanMusicDirectory(dirHandle);
-      console.log(`=== MusicList: Skanerlash tugadi ===`);
-      console.log(`Topilgan qo'shiqlar soni: ${songs.length}`);
-      
-      setLocalSongs(songs);
-      
-      if (songs.length === 0) {
-        const errorMsg = 
-          'Tanlangan papkada audio fayllar topilmadi.\n\n' +
-          'Iltimos:\n' +
-          '1. Musiqa fayllari bo\'lgan papkani tanlang\n' +
-          '2. Qo\'llab-quvvatlanadigan formatlar: MP3, WAV, OGG, M4A, AAC, FLAC, WMA, OPUS, WEBM\n' +
-          '3. Brauzer konsolini tekshiring (F12) - batafsil ma\'lumot uchun';
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    console.log(`=== ${files.length} ta fayl tanlandi ===`);
+
+    const newSongs: Song[] = [];
+    const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac', '.wma', '.opus', '.webm'];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      console.log(`[${i + 1}/${files.length}] Fayl: ${file.name}`);
+
+      try {
+        // Check if it's an audio file
+        const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+        if (!audioExtensions.includes(ext)) {
+          console.log(`O'tkazib yuborildi (audio emas): ${file.name}`);
+          continue;
+        }
+
+        // Get duration
+        const duration = await getAudioDuration(file);
         
-        alert(errorMsg);
-        console.warn('Foydalanuvchiga xabar ko\'rsatildi: Audio fayllar topilmadi');
-      } else {
-        console.log(`✓ ${songs.length} ta qo'shiq muvaffaqiyatli yuklandi`);
-      }
-    } catch (error) {
-      console.error('=== MusicList: Papkani skanerlashda xatolik ===');
-      console.error('Xatolik:', error);
-      
-      const errorMsg = 
-        'Papkani skanerlashda xatolik yuz berdi.\n\n' +
-        'Sabablari:\n' +
-        '1. Papkaga kirish ruxsati berilmagan\n' +
-        '2. Brauzer File System Access API ni qo\'llab-quvvatlamaydi\n' +
-        '3. Papka bo\'sh yoki fayllar o\'qib bo\'lmaydi\n\n' +
-        'Iltimos, qaytadan urinib ko\'ring yoki boshqa papkani tanlang.\n\n' +
-        'Texnik ma\'lumot: ' + (error instanceof Error ? error.message : String(error));
-      
-      alert(errorMsg);
-    } finally {
-      setScanning(false);
-      console.log('=== MusicList: Skanerlash jarayoni tugadi ===');
-    }
-  };
+        // Extract metadata from filename
+        const metadata = extractMetadata(file.name);
+        
+        const id = `manual-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        const song: Song = {
+          id,
+          title: metadata.title || file.name.replace(/\.[^/.]+$/, ''),
+          artist: metadata.artist || 'Noma\'lum ijrochi',
+          duration: Math.floor(duration),
+          is_local: true,
+          file_name: file.name,
+          localAudioUrl: URL.createObjectURL(file),
+        };
 
-  const handleRequestAccess = async () => {
-    const dirHandle = await requestMusicDirectoryAccess();
-    if (dirHandle) {
-      setHasDirectoryAccess(true);
-      await scanDirectory(dirHandle);
-    }
-  };
-
-  const handleRescan = async () => {
-    const dirHandle = await getDirectoryHandle();
-    if (dirHandle) {
-      const hasPermission = await verifyDirectoryPermission(dirHandle);
-      if (hasPermission) {
-        await scanDirectory(dirHandle);
-      } else {
-        setHasDirectoryAccess(false);
-        alert('Papkaga kirish huquqi yo\'q. Iltimos, qaytadan ruxsat bering.');
+        console.log(`✓ Qo'shiq qo'shildi: ${song.title}`);
+        newSongs.push(song);
+      } catch (error) {
+        console.error(`✗ Xatolik: ${file.name}`, error);
       }
     }
+
+    console.log(`=== Jami ${newSongs.length} ta qo'shiq yuklandi ===`);
+
+    if (newSongs.length > 0) {
+      const updatedSongs = [...localSongs, ...newSongs];
+      setLocalSongs(updatedSongs);
+      saveLocalSongs(updatedSongs);
+      alert(`${newSongs.length} ta qo'shiq muvaffaqiyatli yuklandi!`);
+    } else {
+      alert('Hech qanday audio fayl topilmadi. Iltimos, audio fayllarni tanlang.');
+    }
+
+    setUploading(false);
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
-  const handleRevokeAccess = async () => {
-    if (confirm('Musiqa papkasiga kirishni bekor qilmoqchimisiz?')) {
-      await clearDirectoryAccess();
-      setHasDirectoryAccess(false);
+  const getAudioDuration = (file: File): Promise<number> => {
+    return new Promise((resolve) => {
+      const audio = new Audio();
+      audio.onloadedmetadata = () => {
+        resolve(audio.duration);
+        URL.revokeObjectURL(audio.src);
+      };
+      audio.onerror = () => {
+        resolve(180); // Default 3 minutes if error
+        URL.revokeObjectURL(audio.src);
+      };
+      audio.src = URL.createObjectURL(file);
+    });
+  };
+
+  const extractMetadata = (fileName: string): { title?: string; artist?: string } => {
+    // Remove extension
+    const nameWithoutExt = fileName.replace(/\.[^/.]+$/, '');
+    
+    // Format: "Artist - Title" or "Title"
+    if (nameWithoutExt.includes(' - ')) {
+      const [artist, title] = nameWithoutExt.split(' - ');
+      return { artist: artist.trim(), title: title.trim() };
+    }
+    
+    return { title: nameWithoutExt };
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleClearLocal = () => {
+    if (confirm('Barcha mahalliy musiqalarni o\'chirmoqchimisiz?')) {
       setLocalSongs([]);
+      saveLocalSongs([]);
+      alert('Barcha mahalliy musiqalar o\'chirildi');
     }
   };
 
@@ -194,30 +210,46 @@ export default function MusicList() {
           </Button>
         </div>
 
-        {/* Directory Access Section */}
-        {!hasDirectoryAccess && !loading && (
-          <Alert className="mb-6">
-            <FolderOpen className="h-4 w-4" />
-            <AlertDescription className="flex items-center justify-between">
-              <span>Telefon xotirasidagi musiqalarni ko'rish uchun papkaga ruxsat bering</span>
-              <Button onClick={handleRequestAccess} size="sm" className="ml-4">
-                Ruxsat berish
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="audio/*"
+          multiple
+          onChange={handleFileSelect}
+          className="hidden"
+        />
 
-        {hasDirectoryAccess && (
-          <div className="mb-6 flex gap-2">
-            <Button onClick={handleRescan} variant="outline" size="sm" disabled={scanning}>
-              <RefreshCw className={`w-4 h-4 mr-2 ${scanning ? 'animate-spin' : ''}`} />
-              {scanning ? 'Skanerlanyapti...' : 'Qayta skanerlash'}
+        {/* Upload Controls */}
+        <div className="mb-6 flex gap-2 flex-wrap">
+          <Button 
+            onClick={handleUploadClick} 
+            disabled={uploading}
+            className="gap-2"
+          >
+            {uploading ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                Yuklanmoqda...
+              </>
+            ) : (
+              <>
+                <Upload className="w-4 h-4" />
+                Musiqa yuklash
+              </>
+            )}
+          </Button>
+          
+          {localSongs.length > 0 && (
+            <Button 
+              onClick={handleClearLocal} 
+              variant="outline"
+              size="sm"
+            >
+              Hammasini tozalash
             </Button>
-            <Button onClick={handleRevokeAccess} variant="outline" size="sm">
-              Ruxsatni bekor qilish
-            </Button>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -231,7 +263,7 @@ export default function MusicList() {
           </TabsList>
 
           <TabsContent value="local" className="space-y-2">
-            {loading || scanning ? (
+            {loading || uploading ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-4 p-4">
                   <Skeleton className="w-14 h-14 rounded-md bg-muted" />
@@ -242,21 +274,17 @@ export default function MusicList() {
                   <Skeleton className="h-4 w-12 bg-muted" />
                 </div>
               ))
-            ) : !hasDirectoryAccess ? (
-              <div className="text-center py-12">
-                <FolderOpen className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground mb-2">Telefon xotirasiga kirish yo'q</p>
-                <p className="text-sm text-muted-foreground">
-                  Yuqoridagi "Ruxsat berish" tugmasini bosing
-                </p>
-              </div>
             ) : localSongs.length === 0 ? (
               <div className="text-center py-12">
                 <Music className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground mb-2">Musiqa fayllari topilmadi</p>
-                <p className="text-sm text-muted-foreground">
-                  Tanlangan papkada audio fayllar yo'q
+                <p className="text-muted-foreground mb-2">Telefon xotirasida musiqa yo'q</p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  "Musiqa yuklash" tugmasini bosib qo'shiqlarni tanlang
                 </p>
+                <Button onClick={handleUploadClick} variant="outline">
+                  <Upload className="w-4 h-4 mr-2" />
+                  Musiqa yuklash
+                </Button>
               </div>
             ) : (
               localSongs.map((song) => (
