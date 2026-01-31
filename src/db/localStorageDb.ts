@@ -116,27 +116,44 @@ export async function verifyDirectoryPermission(handle: FileSystemDirectoryHandl
 // Scan directory for music files
 export async function scanMusicDirectory(dirHandle: FileSystemDirectoryHandle): Promise<Song[]> {
   const songs: Song[] = [];
-  const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac', '.wma'];
+  const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac', '.wma', '.opus', '.webm'];
   const imageExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+
+  console.log('Musiqa papkasini skanerlash boshlandi...');
 
   try {
     // Collect all files
     const files: { file: File; path: string }[] = [];
     
+    let fileCount = 0;
     for await (const entry of dirHandle.values()) {
+      fileCount++;
+      console.log(`Fayl topildi: ${entry.name}, turi: ${entry.kind}`);
+      
       if (entry.kind === 'file') {
-        const file = await (entry as FileSystemFileHandle).getFile();
-        const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
-        
-        if (audioExtensions.includes(ext)) {
-          files.push({ file, path: file.name });
+        try {
+          const file = await (entry as FileSystemFileHandle).getFile();
+          const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+          
+          console.log(`Fayl: ${file.name}, kengaytma: ${ext}`);
+          
+          if (audioExtensions.includes(ext)) {
+            console.log(`Audio fayl qo'shildi: ${file.name}`);
+            files.push({ file, path: file.name });
+          }
+        } catch (error) {
+          console.error(`Faylni o'qishda xatolik: ${entry.name}`, error);
         }
       }
     }
 
+    console.log(`Jami ${fileCount} ta fayl tekshirildi, ${files.length} ta audio fayl topildi`);
+
     // Process each audio file
     for (const { file, path } of files) {
       try {
+        console.log(`Audio faylni qayta ishlash: ${file.name}`);
+        
         const duration = await getAudioDuration(file);
         const metadata = await extractMetadata(file);
         
@@ -144,18 +161,23 @@ export async function scanMusicDirectory(dirHandle: FileSystemDirectoryHandle): 
         
         // Try to find album art in the same directory
         let albumArtUrl: string | undefined;
-        for await (const entry of dirHandle.values()) {
-          if (entry.kind === 'file') {
-            const artFile = await (entry as FileSystemFileHandle).getFile();
-            const ext = artFile.name.toLowerCase().slice(artFile.name.lastIndexOf('.'));
-            const baseName = artFile.name.toLowerCase();
-            
-            if (imageExtensions.includes(ext) && 
-                (baseName.includes('cover') || baseName.includes('album') || baseName.includes('art'))) {
-              albumArtUrl = URL.createObjectURL(artFile);
-              break;
+        try {
+          for await (const entry of dirHandle.values()) {
+            if (entry.kind === 'file') {
+              const artFile = await (entry as FileSystemFileHandle).getFile();
+              const ext = artFile.name.toLowerCase().slice(artFile.name.lastIndexOf('.'));
+              const baseName = artFile.name.toLowerCase();
+              
+              if (imageExtensions.includes(ext) && 
+                  (baseName.includes('cover') || baseName.includes('album') || baseName.includes('art') || baseName.includes('folder'))) {
+                albumArtUrl = URL.createObjectURL(artFile);
+                console.log(`Albom rasmi topildi: ${artFile.name}`);
+                break;
+              }
             }
           }
+        } catch (error) {
+          console.error('Albom rasmini qidirishda xatolik:', error);
         }
 
         const song: Song = {
@@ -169,14 +191,20 @@ export async function scanMusicDirectory(dirHandle: FileSystemDirectoryHandle): 
           localAlbumArtUrl: albumArtUrl,
         };
 
+        console.log(`Qo'shiq qo'shildi: ${song.title} - ${song.artist}`);
         songs.push(song);
       } catch (error) {
         console.error(`Faylni qayta ishlashda xatolik: ${path}`, error);
       }
     }
 
+    console.log(`Jami ${songs.length} ta qo'shiq muvaffaqiyatli yuklandi`);
+
     // Save to localStorage
-    saveLocalSongs(songs);
+    if (songs.length > 0) {
+      saveLocalSongs(songs);
+      console.log('Qo\'shiqlar localStorage ga saqlandi');
+    }
     
     return songs;
   } catch (error) {

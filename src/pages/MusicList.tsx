@@ -85,11 +85,18 @@ export default function MusicList() {
 
   const scanDirectory = async (dirHandle: FileSystemDirectoryHandle) => {
     setScanning(true);
+    console.log('Papkani skanerlash boshlandi');
     try {
       const songs = await scanMusicDirectory(dirHandle);
+      console.log(`Skanerlash tugadi: ${songs.length} ta qo'shiq topildi`);
       setLocalSongs(songs);
+      
+      if (songs.length === 0) {
+        alert('Tanlangan papkada audio fayllar topilmadi. Iltimos, musiqa fayllari bo\'lgan papkani tanlang.');
+      }
     } catch (error) {
       console.error('Papkani skanerlashda xatolik:', error);
+      alert('Papkani skanerlashda xatolik yuz berdi. Iltimos, qaytadan urinib ko\'ring.');
     } finally {
       setScanning(false);
     }
