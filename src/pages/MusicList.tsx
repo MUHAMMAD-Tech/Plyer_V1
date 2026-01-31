@@ -85,20 +85,46 @@ export default function MusicList() {
 
   const scanDirectory = async (dirHandle: FileSystemDirectoryHandle) => {
     setScanning(true);
-    console.log('Papkani skanerlash boshlandi');
+    console.log('=== MusicList: Papkani skanerlash boshlandi ===');
+    console.log('Directory handle:', dirHandle);
+    
     try {
       const songs = await scanMusicDirectory(dirHandle);
-      console.log(`Skanerlash tugadi: ${songs.length} ta qo'shiq topildi`);
+      console.log(`=== MusicList: Skanerlash tugadi ===`);
+      console.log(`Topilgan qo'shiqlar soni: ${songs.length}`);
+      
       setLocalSongs(songs);
       
       if (songs.length === 0) {
-        alert('Tanlangan papkada audio fayllar topilmadi. Iltimos, musiqa fayllari bo\'lgan papkani tanlang.');
+        const errorMsg = 
+          'Tanlangan papkada audio fayllar topilmadi.\n\n' +
+          'Iltimos:\n' +
+          '1. Musiqa fayllari bo\'lgan papkani tanlang\n' +
+          '2. Qo\'llab-quvvatlanadigan formatlar: MP3, WAV, OGG, M4A, AAC, FLAC, WMA, OPUS, WEBM\n' +
+          '3. Brauzer konsolini tekshiring (F12) - batafsil ma\'lumot uchun';
+        
+        alert(errorMsg);
+        console.warn('Foydalanuvchiga xabar ko\'rsatildi: Audio fayllar topilmadi');
+      } else {
+        console.log(`✓ ${songs.length} ta qo'shiq muvaffaqiyatli yuklandi`);
       }
     } catch (error) {
-      console.error('Papkani skanerlashda xatolik:', error);
-      alert('Papkani skanerlashda xatolik yuz berdi. Iltimos, qaytadan urinib ko\'ring.');
+      console.error('=== MusicList: Papkani skanerlashda xatolik ===');
+      console.error('Xatolik:', error);
+      
+      const errorMsg = 
+        'Papkani skanerlashda xatolik yuz berdi.\n\n' +
+        'Sabablari:\n' +
+        '1. Papkaga kirish ruxsati berilmagan\n' +
+        '2. Brauzer File System Access API ni qo\'llab-quvvatlamaydi\n' +
+        '3. Papka bo\'sh yoki fayllar o\'qib bo\'lmaydi\n\n' +
+        'Iltimos, qaytadan urinib ko\'ring yoki boshqa papkani tanlang.\n\n' +
+        'Texnik ma\'lumot: ' + (error instanceof Error ? error.message : String(error));
+      
+      alert(errorMsg);
     } finally {
       setScanning(false);
+      console.log('=== MusicList: Skanerlash jarayoni tugadi ===');
     }
   };
 

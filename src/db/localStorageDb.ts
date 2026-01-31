@@ -119,49 +119,106 @@ export async function scanMusicDirectory(dirHandle: FileSystemDirectoryHandle): 
   const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac', '.wma', '.opus', '.webm'];
   const imageExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
 
-  console.log('Musiqa papkasini skanerlash boshlandi...');
+  console.log('=== SKANERLASH BOSHLANDI ===');
+  console.log('Papka nomi:', dirHandle.name);
 
   try {
+    // First, verify we can access the directory
+    const permission = await dirHandle.queryPermission({ mode: 'read' });
+    console.log('Ruxsat holati:', permission);
+    
+    if (permission !== 'granted') {
+      console.error('Ruxsat berilmagan!');
+      throw new Error('Papkaga kirish ruxsati yo\'q');
+    }
+
     // Collect all files
     const files: { file: File; path: string }[] = [];
     
     let fileCount = 0;
-    for await (const entry of dirHandle.values()) {
-      fileCount++;
-      console.log(`Fayl topildi: ${entry.name}, turi: ${entry.kind}`);
-      
-      if (entry.kind === 'file') {
-        try {
-          const file = await (entry as FileSystemFileHandle).getFile();
-          const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
-          
-          console.log(`Fayl: ${file.name}, kengaytma: ${ext}`);
-          
-          if (audioExtensions.includes(ext)) {
-            console.log(`Audio fayl qo'shildi: ${file.name}`);
-            files.push({ file, path: file.name });
+    let iterationCount = 0;
+    
+    console.log('Fayllarni tekshirish boshlandi...');
+    
+    try {
+      for await (const entry of dirHandle.values()) {
+        iterationCount++;
+        console.log(`[${iterationCount}] Entry topildi:`, {
+          name: entry.name,
+          kind: entry.kind
+        });
+        
+        if (entry.kind === 'file') {
+          fileCount++;
+          try {
+            const fileHandle = entry as FileSystemFileHandle;
+            const file = await fileHandle.getFile();
+            
+            console.log(`Fayl ma'lumotlari:`, {
+              name: file.name,
+              size: file.size,
+              type: file.type,
+              lastModified: new Date(file.lastModified).toISOString()
+            });
+            
+            const fileName = file.name.toLowerCase();
+            const lastDotIndex = fileName.lastIndexOf('.');
+            const ext = lastDotIndex >= 0 ? fileName.slice(lastDotIndex) : '';
+            
+            console.log(`Kengaytma: "${ext}"`);
+            console.log('Audio kengaytmalar ro\'yxati:', audioExtensions);
+            console.log('Kengaytma audio ro\'yxatida bormi?', audioExtensions.includes(ext));
+            
+            if (audioExtensions.includes(ext)) {
+              console.log(`✓ AUDIO FAYL TOPILDI: ${file.name}`);
+              files.push({ file, path: file.name });
+            } else {
+              console.log(`✗ Audio emas: ${file.name}`);
+            }
+          } catch (error) {
+            console.error(`Faylni o'qishda xatolik: ${entry.name}`, error);
           }
-        } catch (error) {
-          console.error(`Faylni o'qishda xatolik: ${entry.name}`, error);
+        } else if (entry.kind === 'directory') {
+          console.log(`Papka topildi (o'tkazib yuborildi): ${entry.name}`);
         }
       }
+    } catch (iterError) {
+      console.error('Iteratsiya xatoligi:', iterError);
+      throw iterError;
     }
 
-    console.log(`Jami ${fileCount} ta fayl tekshirildi, ${files.length} ta audio fayl topildi`);
+    console.log(`\n=== TEKSHIRISH YAKUNLANDI ===`);
+    console.log(`Jami entry: ${iterationCount}`);
+    console.log(`Jami fayllar: ${fileCount}`);
+    console.log(`Audio fayllar: ${files.length}`);
+
+    if (files.length === 0) {
+      console.warn('OGOHLANTIRISH: Hech qanday audio fayl topilmadi!');
+      return [];
+    }
 
     // Process each audio file
-    for (const { file, path } of files) {
+    console.log('\n=== AUDIO FAYLLARNI QAYTA ISHLASH ===');
+    
+    for (let i = 0; i < files.length; i++) {
+      const { file, path } = files[i];
+      console.log(`\n[${i + 1}/${files.length}] Qayta ishlash: ${file.name}`);
+      
       try {
-        console.log(`Audio faylni qayta ishlash: ${file.name}`);
-        
+        console.log('Audio davomiyligini olish...');
         const duration = await getAudioDuration(file);
+        console.log(`Davomiyligi: ${duration} soniya`);
+        
+        console.log('Metadata ni ajratib olish...');
         const metadata = await extractMetadata(file);
+        console.log('Metadata:', metadata);
         
         const id = `auto-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         
         // Try to find album art in the same directory
         let albumArtUrl: string | undefined;
         try {
+          console.log('Albom rasmini qidirish...');
           for await (const entry of dirHandle.values()) {
             if (entry.kind === 'file') {
               const artFile = await (entry as FileSystemFileHandle).getFile();
@@ -169,7 +226,8 @@ export async function scanMusicDirectory(dirHandle: FileSystemDirectoryHandle): 
               const baseName = artFile.name.toLowerCase();
               
               if (imageExtensions.includes(ext) && 
-                  (baseName.includes('cover') || baseName.includes('album') || baseName.includes('art') || baseName.includes('folder'))) {
+                  (baseName.includes('cover') || baseName.includes('album') || 
+                   baseName.includes('art') || baseName.includes('folder'))) {
                 albumArtUrl = URL.createObjectURL(artFile);
                 console.log(`Albom rasmi topildi: ${artFile.name}`);
                 break;
@@ -191,25 +249,35 @@ export async function scanMusicDirectory(dirHandle: FileSystemDirectoryHandle): 
           localAlbumArtUrl: albumArtUrl,
         };
 
-        console.log(`Qo'shiq qo'shildi: ${song.title} - ${song.artist}`);
+        console.log(`✓ Qo'shiq yaratildi:`, {
+          id: song.id,
+          title: song.title,
+          artist: song.artist,
+          duration: song.duration
+        });
+        
         songs.push(song);
       } catch (error) {
-        console.error(`Faylni qayta ishlashda xatolik: ${path}`, error);
+        console.error(`✗ Faylni qayta ishlashda xatolik: ${path}`, error);
       }
     }
 
+    console.log(`\n=== YAKUNIY NATIJA ===`);
     console.log(`Jami ${songs.length} ta qo'shiq muvaffaqiyatli yuklandi`);
 
     // Save to localStorage
     if (songs.length > 0) {
       saveLocalSongs(songs);
-      console.log('Qo\'shiqlar localStorage ga saqlandi');
+      console.log('✓ Qo\'shiqlar localStorage ga saqlandi');
     }
     
     return songs;
   } catch (error) {
-    console.error('Musiqa papkasini skanerlashda xatolik:', error);
-    return [];
+    console.error('=== SKANERLASHDA XATOLIK ===');
+    console.error('Xatolik:', error);
+    console.error('Xatolik turi:', error instanceof Error ? error.constructor.name : typeof error);
+    console.error('Xatolik xabari:', error instanceof Error ? error.message : String(error));
+    throw error;
   }
 }
 
