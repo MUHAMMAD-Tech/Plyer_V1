@@ -1,0 +1,5 @@
+-- Add support for local files
+ALTER TABLE songs ADD COLUMN IF NOT EXISTS is_local BOOLEAN DEFAULT false;
+ALTER TABLE songs ADD COLUMN IF NOT EXISTS file_name TEXT;
+ALTER TABLE songs ALTER COLUMN audio_url DROP NOT NULL;
+ALTER TABLE songs ALTER COLUMN album_art_url DROP NOT NULL;

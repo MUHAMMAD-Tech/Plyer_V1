@@ -115,10 +115,14 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     }
 
     setCurrentSong(song);
-    audioRef.current.src = song.audio_url;
-    audioRef.current.load();
-    setIsPlaying(true);
-    audioRef.current.play().catch(console.error);
+    // Use local audio URL if available, otherwise use regular URL
+    const audioUrl = song.localAudioUrl || song.audio_url;
+    if (audioUrl) {
+      audioRef.current.src = audioUrl;
+      audioRef.current.load();
+      setIsPlaying(true);
+      audioRef.current.play().catch(console.error);
+    }
   };
 
   const togglePlayPause = () => {

@@ -10,9 +10,15 @@ export interface Song {
   title: string;
   artist: string;
   duration: number;
-  audio_url: string;
-  album_art_url: string;
+  audio_url?: string;
+  album_art_url?: string;
   created_at?: string;
+  is_local?: boolean;
+  file_name?: string;
+  // Local file data (not stored in DB)
+  file?: File;
+  localAudioUrl?: string;
+  localAlbumArtUrl?: string;
 }
 
 export interface PlaybackState {

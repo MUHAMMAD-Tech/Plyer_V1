@@ -15,6 +15,8 @@ function formatDuration(seconds: number): string {
 }
 
 export function SongItem({ song, isPlaying, onClick }: SongItemProps) {
+  const albumArtUrl = song.localAlbumArtUrl || song.album_art_url;
+
   return (
     <div
       onClick={onClick}
@@ -25,11 +27,17 @@ export function SongItem({ song, isPlaying, onClick }: SongItemProps) {
       )}
     >
       <div className="relative shrink-0">
-        <img
-          src={song.album_art_url}
-          alt={song.title}
-          className="w-14 h-14 rounded-md object-cover"
-        />
+        {albumArtUrl ? (
+          <img
+            src={albumArtUrl}
+            alt={song.title}
+            className="w-14 h-14 rounded-md object-cover bg-muted"
+          />
+        ) : (
+          <div className="w-14 h-14 rounded-md bg-muted flex items-center justify-center">
+            <Music2 className="w-6 h-6 text-muted-foreground" />
+          </div>
+        )}
         <div
           className={cn(
             'absolute inset-0 bg-black/40 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity',

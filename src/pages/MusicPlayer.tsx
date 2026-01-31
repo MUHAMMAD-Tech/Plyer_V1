@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, Pause, Play, SkipBack, SkipForward, Volume2, VolumeX } from 'lucide-react';
+import { ArrowLeft, Pause, Play, SkipBack, SkipForward, Volume2, VolumeX, Music } from 'lucide-react';
 import { useAudio } from '@/contexts/AudioContext';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -78,15 +78,21 @@ export default function MusicPlayer() {
 
         {/* Album Art */}
         <div className="relative mb-8 animate-fade-in">
-          <div className="aspect-square rounded-2xl overflow-hidden shadow-2xl">
-            <img
-              src={currentSong.album_art_url}
-              alt={currentSong.title}
-              className={cn(
-                'w-full h-full object-cover transition-transform duration-300',
-                isPlaying && 'scale-105'
-              )}
-            />
+          <div className="aspect-square rounded-2xl overflow-hidden shadow-2xl bg-muted">
+            {currentSong.localAlbumArtUrl || currentSong.album_art_url ? (
+              <img
+                src={currentSong.localAlbumArtUrl || currentSong.album_art_url}
+                alt={currentSong.title}
+                className={cn(
+                  'w-full h-full object-cover transition-transform duration-300',
+                  isPlaying && 'scale-105'
+                )}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <Music className="w-32 h-32 text-muted-foreground" />
+              </div>
+            )}
           </div>
           {/* Glow effect */}
           <div
