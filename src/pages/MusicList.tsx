@@ -4,6 +4,7 @@ import { Music, Moon, Sun, Upload, RefreshCw } from 'lucide-react';
 import { songsApi } from '@/db/api';
 import { useAudio } from '@/contexts/AudioContext';
 import { SongItem } from '@/components/music/SongItem';
+import { AlbumArt } from '@/components/music/AlbumArt';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -335,10 +336,12 @@ export default function MusicList() {
             className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 cursor-pointer hover:bg-accent/5 transition-colors"
           >
             <div className="max-w-4xl mx-auto flex items-center gap-4">
-              <img
-                src={currentSong.localAlbumArtUrl || currentSong.album_art_url || '/placeholder-album.png'}
+              <AlbumArt
+                src={currentSong.localAlbumArtUrl || currentSong.album_art_url}
                 alt={currentSong.title}
-                className="w-12 h-12 rounded-md object-cover bg-muted"
+                seedText={currentSong.id}
+                className="w-12 h-12 rounded-md"
+                showIcon={false}
               />
               <div className="flex-1 min-w-0">
                 <p className="font-semibold truncate">{currentSong.title}</p>

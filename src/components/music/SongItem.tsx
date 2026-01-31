@@ -1,6 +1,7 @@
 import { Music2, Play } from 'lucide-react';
 import type { Song } from '@/types';
 import { cn } from '@/lib/utils';
+import { AlbumArt } from './AlbumArt';
 
 interface SongItemProps {
   song: Song;
@@ -27,17 +28,13 @@ export function SongItem({ song, isPlaying, onClick }: SongItemProps) {
       )}
     >
       <div className="relative shrink-0">
-        {albumArtUrl ? (
-          <img
-            src={albumArtUrl}
-            alt={song.title}
-            className="w-14 h-14 rounded-md object-cover bg-muted"
-          />
-        ) : (
-          <div className="w-14 h-14 rounded-md bg-muted flex items-center justify-center">
-            <Music2 className="w-6 h-6 text-muted-foreground" />
-          </div>
-        )}
+        <AlbumArt
+          src={albumArtUrl}
+          alt={song.title}
+          seedText={song.id}
+          className="w-14 h-14 rounded-md"
+          showIcon={true}
+        />
         <div
           className={cn(
             'absolute inset-0 bg-black/40 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity',

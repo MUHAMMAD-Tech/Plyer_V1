@@ -43,7 +43,12 @@ A web-based music player application that allows users to play audio files with 
   - Play/Pause button (toggle state)
   - Next button
 
-#### 2.4.2 Playback Controls
+#### 2.4.2 Album Art Display
+- If the music file contains album art/photo icon, display the original image
+- If the music file does not have album art/photo icon, automatically generate and display a gradient icon as placeholder
+- Gradient icons should be visually appealing and vary for different songs
+
+#### 2.4.3 Playback Controls
 - Play: Start audio playback
 - Pause: Pause current playback
 - Next: Skip to next song in list
