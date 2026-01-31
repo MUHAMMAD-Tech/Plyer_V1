@@ -15,11 +15,12 @@
   - [x] SongItem component
 - [x] Step 6: Update routes and integrate AudioProvider
 - [x] Step 7: Fix theme switching issue
-- [x] Step 8: Add local file upload support
-  - [x] Create IndexedDB storage layer
-  - [x] Create FileUpload component
-  - [x] Update MusicList with tabs for local/online songs
-  - [x] Add delete functionality for local songs
+- [x] Step 8: Add automatic phone storage scanning
+  - [x] Implement File System Access API
+  - [x] Add directory permission handling
+  - [x] Create automatic music scanning
+  - [x] Remove manual upload button
+  - [x] Add rescan functionality
 - [x] Step 9: Translate UI to Uzbek
 - [x] Step 10: Run lint and fix issues
 
@@ -42,8 +43,9 @@
   ✓ Theme toggle (dark/light mode) - FIXED
   ✓ Responsive design
   ✓ Smooth animations
-  ✓ Local file upload from phone storage - NEW
-  ✓ IndexedDB for storing audio files locally - NEW
-  ✓ Tabs for local vs online songs - NEW
-  ✓ Delete local songs - NEW
-  ✓ UI in Uzbek language - NEW
+  ✓ Automatic phone storage scanning - NEW
+  ✓ File System Access API integration - NEW
+  ✓ Permission request on first use - NEW
+  ✓ Automatic metadata extraction - NEW
+  ✓ Rescan functionality - NEW
+  ✓ UI in Uzbek language

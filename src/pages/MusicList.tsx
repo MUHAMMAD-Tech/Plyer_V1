@@ -1,16 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Music, Moon, Sun, Trash2 } from 'lucide-react';
+import { Music, Moon, Sun, FolderOpen, RefreshCw } from 'lucide-react';
 import { songsApi } from '@/db/api';
 import { useAudio } from '@/contexts/AudioContext';
 import { SongItem } from '@/components/music/SongItem';
-import { FileUpload } from '@/components/music/FileUpload';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useTheme } from 'next-themes';
 import type { Song } from '@/types';
-import { getLocalSongs, deleteLocalSong, getAudioFile, getImageFile, initIndexedDB } from '@/db/localStorageDb';
+import { 
+  initIndexedDB,
+  getDirectoryHandle,
+  requestMusicDirectoryAccess,
+  verifyDirectoryPermission,
+  scanMusicDirectory,
+  clearDirectoryAccess
+} from '@/db/localStorageDb';
 
 export default function MusicList() {
   const navigate = useNavigate();
@@ -19,6 +26,8 @@ export default function MusicList() {
   const [onlineSongs, setOnlineSongs] = useState<Song[]>([]);
   const [localSongs, setLocalSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
+  const [scanning, setScanning] = useState(false);
+  const [hasDirectoryAccess, setHasDirectoryAccess] = useState(false);
   const [activeTab, setActiveTab] = useState('local');
 
   useEffect(() => {
@@ -35,9 +44,18 @@ export default function MusicList() {
     const online = await songsApi.getAllSongs();
     setOnlineSongs(online);
     
-    // Load local songs
-    const local = getLocalSongs();
-    setLocalSongs(local);
+    // Check for existing directory access
+    const dirHandle = await getDirectoryHandle();
+    if (dirHandle) {
+      const hasPermission = await verifyDirectoryPermission(dirHandle);
+      if (hasPermission) {
+        setHasDirectoryAccess(true);
+        // Automatically scan directory
+        await scanDirectory(dirHandle);
+      } else {
+        setHasDirectoryAccess(false);
+      }
+    }
     
     setLoading(false);
 
@@ -45,7 +63,7 @@ export default function MusicList() {
     const restoreSongId = sessionStorage.getItem('restore-song-id');
     const restoreTime = sessionStorage.getItem('restore-time');
     if (restoreSongId) {
-      const allSongs = [...local, ...online];
+      const allSongs = [...localSongs, ...online];
       const song = allSongs.find((s) => s.id === restoreSongId);
       if (song) {
         await handleSongClick(song, allSongs);
@@ -63,42 +81,50 @@ export default function MusicList() {
     }
   };
 
-  const handleSongClick = async (song: Song, playlist?: Song[]) => {
-    // If local song, load file from IndexedDB
-    if (song.is_local) {
-      const audioFile = await getAudioFile(song.id);
-      const imageFile = await getImageFile(song.id);
-      
-      if (audioFile) {
-        const audioUrl = URL.createObjectURL(audioFile);
-        const imageUrl = imageFile ? URL.createObjectURL(imageFile) : undefined;
-        
-        const songWithUrls = {
-          ...song,
-          localAudioUrl: audioUrl,
-          localAlbumArtUrl: imageUrl,
-        };
-        
-        playSong(songWithUrls, playlist || [...localSongs, ...onlineSongs]);
+  const scanDirectory = async (dirHandle: FileSystemDirectoryHandle) => {
+    setScanning(true);
+    try {
+      const songs = await scanMusicDirectory(dirHandle);
+      setLocalSongs(songs);
+    } catch (error) {
+      console.error('Papkani skanerlashda xatolik:', error);
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const handleRequestAccess = async () => {
+    const dirHandle = await requestMusicDirectoryAccess();
+    if (dirHandle) {
+      setHasDirectoryAccess(true);
+      await scanDirectory(dirHandle);
+    }
+  };
+
+  const handleRescan = async () => {
+    const dirHandle = await getDirectoryHandle();
+    if (dirHandle) {
+      const hasPermission = await verifyDirectoryPermission(dirHandle);
+      if (hasPermission) {
+        await scanDirectory(dirHandle);
+      } else {
+        setHasDirectoryAccess(false);
+        alert('Papkaga kirish huquqi yo\'q. Iltimos, qaytadan ruxsat bering.');
       }
-    } else {
-      playSong(song, playlist || [...localSongs, ...onlineSongs]);
     }
-    
+  };
+
+  const handleRevokeAccess = async () => {
+    if (confirm('Musiqa papkasiga kirishni bekor qilmoqchimisiz?')) {
+      await clearDirectoryAccess();
+      setHasDirectoryAccess(false);
+      setLocalSongs([]);
+    }
+  };
+
+  const handleSongClick = async (song: Song, playlist?: Song[]) => {
+    playSong(song, playlist || [...localSongs, ...onlineSongs]);
     navigate('/player');
-  };
-
-  const handleDeleteLocal = async (songId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    if (confirm('Bu qo\'shiqni o\'chirmoqchimisiz?')) {
-      await deleteLocalSong(songId);
-      setLocalSongs(getLocalSongs());
-    }
-  };
-
-  const handleUploadComplete = (newSong: Song) => {
-    setLocalSongs([...localSongs, newSong]);
   };
 
   const toggleTheme = () => {
@@ -133,10 +159,30 @@ export default function MusicList() {
           </Button>
         </div>
 
-        {/* Upload Button */}
-        <div className="mb-6">
-          <FileUpload onUploadComplete={handleUploadComplete} />
-        </div>
+        {/* Directory Access Section */}
+        {!hasDirectoryAccess && (
+          <Alert className="mb-6">
+            <FolderOpen className="h-4 w-4" />
+            <AlertDescription className="flex items-center justify-between">
+              <span>Telefon xotirasidagi musiqalarni ko'rish uchun papkaga ruxsat bering</span>
+              <Button onClick={handleRequestAccess} size="sm" className="ml-4">
+                Ruxsat berish
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {hasDirectoryAccess && (
+          <div className="mb-6 flex gap-2">
+            <Button onClick={handleRescan} variant="outline" size="sm" disabled={scanning}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${scanning ? 'animate-spin' : ''}`} />
+              {scanning ? 'Skanerlanyapti...' : 'Qayta skanerlash'}
+            </Button>
+            <Button onClick={handleRevokeAccess} variant="outline" size="sm">
+              Ruxsatni bekor qilish
+            </Button>
+          </div>
+        )}
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -150,7 +196,7 @@ export default function MusicList() {
           </TabsList>
 
           <TabsContent value="local" className="space-y-2">
-            {loading ? (
+            {loading || scanning ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-4 p-4">
                   <Skeleton className="w-14 h-14 rounded-md bg-muted" />
@@ -161,31 +207,30 @@ export default function MusicList() {
                   <Skeleton className="h-4 w-12 bg-muted" />
                 </div>
               ))
+            ) : !hasDirectoryAccess ? (
+              <div className="text-center py-12">
+                <FolderOpen className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground mb-2">Telefon xotirasiga kirish yo'q</p>
+                <p className="text-sm text-muted-foreground">
+                  Yuqoridagi "Ruxsat berish" tugmasini bosing
+                </p>
+              </div>
             ) : localSongs.length === 0 ? (
               <div className="text-center py-12">
                 <Music className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground mb-2">Telefon xotirasida musiqa yo'q</p>
+                <p className="text-muted-foreground mb-2">Musiqa fayllari topilmadi</p>
                 <p className="text-sm text-muted-foreground">
-                  "Musiqa yuklash" tugmasini bosib qo'shiq qo'shing
+                  Tanlangan papkada audio fayllar yo'q
                 </p>
               </div>
             ) : (
               localSongs.map((song) => (
-                <div key={song.id} className="relative group">
-                  <SongItem
-                    song={song}
-                    isPlaying={currentSong?.id === song.id && isPlaying}
-                    onClick={() => handleSongClick(song, localSongs)}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => handleDeleteLocal(song.id, e)}
-                  >
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
-                </div>
+                <SongItem
+                  key={song.id}
+                  song={song}
+                  isPlaying={currentSong?.id === song.id && isPlaying}
+                  onClick={() => handleSongClick(song, localSongs)}
+                />
               ))
             )}
           </TabsContent>
