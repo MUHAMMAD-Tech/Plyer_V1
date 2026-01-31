@@ -74,7 +74,7 @@ export async function requestMusicDirectoryAccess(): Promise<FileSystemDirectory
   try {
     // Check if File System Access API is supported
     if (!('showDirectoryPicker' in window)) {
-      alert('Sizning brauzeringiz fayl tizimiga kirishni qo\'llab-quvvatlamaydi');
+      alert('Sizning brauzeringiz fayl tizimiga kirishni qo\'llab-quvvatlamaydi. Iltimos, Chrome, Edge yoki boshqa zamonaviy brauzerdan foydalaning.');
       return null;
     }
 
@@ -87,8 +87,13 @@ export async function requestMusicDirectoryAccess(): Promise<FileSystemDirectory
     await storeDirectoryHandle(dirHandle);
     
     return dirHandle;
-  } catch (error) {
-    console.error('Musiqa papkasiga kirish rad etildi:', error);
+  } catch (error: any) {
+    // User cancelled the picker
+    if (error.name === 'AbortError') {
+      console.log('Foydalanuvchi papka tanlashni bekor qildi');
+    } else {
+      console.error('Musiqa papkasiga kirish rad etildi:', error);
+    }
     return null;
   }
 }

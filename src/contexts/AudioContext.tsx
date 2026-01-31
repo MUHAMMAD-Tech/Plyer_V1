@@ -36,19 +36,14 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     audioRef.current = new Audio();
     audioRef.current.volume = volume;
 
-    // Load saved state from localStorage
+    // Load saved volume from localStorage
     const savedState = localStorage.getItem(STORAGE_KEY);
     if (savedState) {
       try {
-        const { songId, time, volume: savedVolume } = JSON.parse(savedState);
+        const { volume: savedVolume } = JSON.parse(savedState);
         if (savedVolume !== undefined) {
           setVolumeState(savedVolume);
           audioRef.current.volume = savedVolume;
-        }
-        // We'll restore the song when playlist is loaded
-        if (songId) {
-          sessionStorage.setItem('restore-song-id', songId);
-          sessionStorage.setItem('restore-time', time?.toString() || '0');
         }
       } catch (error) {
         console.error('Error loading saved state:', error);
@@ -91,7 +86,7 @@ export function AudioProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Save state to localStorage
+  // Save state to localStorage (only volume and current song for memory, not auto-play)
   useEffect(() => {
     if (currentSong) {
       localStorage.setItem(

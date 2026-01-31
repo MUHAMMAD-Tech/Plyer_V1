@@ -21,13 +21,17 @@
   - [x] Create automatic music scanning
   - [x] Remove manual upload button
   - [x] Add rescan functionality
-- [x] Step 9: Translate UI to Uzbek
-- [x] Step 10: Run lint and fix issues
+- [x] Step 9: Fix auto-play issue on app load
+  - [x] Remove auto-restore and auto-play from AudioContext
+  - [x] Add one-time permission dialog on first load
+  - [x] Automatically scan directory after permission granted
+- [x] Step 10: Translate UI to Uzbek
+- [x] Step 11: Run lint and fix issues
 
 ## Notes
 - Using HTML5 Audio API for playback
 - React Context for continuous playback across navigation
-- localStorage for remembering last played song and position
+- localStorage for remembering volume and last song (no auto-play)
 - Supabase for song metadata and audio file storage
 - Dark/light theme support with music-themed purple/pink colors
 - Sample songs use SoundHelix demo MP3 files
@@ -39,13 +43,14 @@
   ✓ Seekable progress bar
   ✓ Volume control
   ✓ Continuous playback across navigation
-  ✓ Playback memory (localStorage)
-  ✓ Theme toggle (dark/light mode) - FIXED
+  ✓ Playback memory (localStorage) - NO AUTO-PLAY
+  ✓ Theme toggle (dark/light mode)
   ✓ Responsive design
   ✓ Smooth animations
-  ✓ Automatic phone storage scanning - NEW
-  ✓ File System Access API integration - NEW
-  ✓ Permission request on first use - NEW
-  ✓ Automatic metadata extraction - NEW
-  ✓ Rescan functionality - NEW
+  ✓ Automatic phone storage scanning
+  ✓ File System Access API integration
+  ✓ One-time permission dialog on first load - NEW
+  ✓ No auto-play on app load - FIXED
+  ✓ Automatic metadata extraction
+  ✓ Rescan functionality
   ✓ UI in Uzbek language

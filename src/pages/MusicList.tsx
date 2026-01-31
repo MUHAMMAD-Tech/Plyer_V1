@@ -40,45 +40,47 @@ export default function MusicList() {
     // Initialize IndexedDB
     await initIndexedDB();
     
+    // Check if this is first time user
+    const hasAskedPermission = localStorage.getItem('music-permission-asked');
+    
+    if (!hasAskedPermission) {
+      // First time - show permission dialog
+      const userConsent = confirm(
+        'Telefon xotirangizdagi barcha musiqalarga kirish uchun ruxsat berasizmi?\n\n' +
+        'Ha - Barcha musiqalaringiz avtomatik yuklanadi\n' +
+        'Yo\'q - Faqat onlayn musiqalardan foydalanasiz'
+      );
+      
+      localStorage.setItem('music-permission-asked', 'true');
+      
+      if (userConsent) {
+        // User agreed - request directory access
+        const dirHandle = await requestMusicDirectoryAccess();
+        if (dirHandle) {
+          setHasDirectoryAccess(true);
+          await scanDirectory(dirHandle);
+        }
+      }
+    } else {
+      // Not first time - check for existing directory access
+      const dirHandle = await getDirectoryHandle();
+      if (dirHandle) {
+        const hasPermission = await verifyDirectoryPermission(dirHandle);
+        if (hasPermission) {
+          setHasDirectoryAccess(true);
+          // Automatically scan directory
+          await scanDirectory(dirHandle);
+        } else {
+          setHasDirectoryAccess(false);
+        }
+      }
+    }
+    
     // Load online songs
     const online = await songsApi.getAllSongs();
     setOnlineSongs(online);
     
-    // Check for existing directory access
-    const dirHandle = await getDirectoryHandle();
-    if (dirHandle) {
-      const hasPermission = await verifyDirectoryPermission(dirHandle);
-      if (hasPermission) {
-        setHasDirectoryAccess(true);
-        // Automatically scan directory
-        await scanDirectory(dirHandle);
-      } else {
-        setHasDirectoryAccess(false);
-      }
-    }
-    
     setLoading(false);
-
-    // Restore last played song if available
-    const restoreSongId = sessionStorage.getItem('restore-song-id');
-    const restoreTime = sessionStorage.getItem('restore-time');
-    if (restoreSongId) {
-      const allSongs = [...localSongs, ...online];
-      const song = allSongs.find((s) => s.id === restoreSongId);
-      if (song) {
-        await handleSongClick(song, allSongs);
-        if (restoreTime) {
-          setTimeout(() => {
-            const audio = document.querySelector('audio');
-            if (audio) {
-              audio.currentTime = Number.parseFloat(restoreTime);
-            }
-          }, 100);
-        }
-      }
-      sessionStorage.removeItem('restore-song-id');
-      sessionStorage.removeItem('restore-time');
-    }
   };
 
   const scanDirectory = async (dirHandle: FileSystemDirectoryHandle) => {
@@ -160,7 +162,7 @@ export default function MusicList() {
         </div>
 
         {/* Directory Access Section */}
-        {!hasDirectoryAccess && (
+        {!hasDirectoryAccess && !loading && (
           <Alert className="mb-6">
             <FolderOpen className="h-4 w-4" />
             <AlertDescription className="flex items-center justify-between">
