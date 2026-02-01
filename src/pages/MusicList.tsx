@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Music, Moon, Sun, Upload, RefreshCw } from 'lucide-react';
+import { Music, Moon, Sun, Upload, Settings, X } from 'lucide-react';
 import { songsApi } from '@/db/api';
 import { useAudio } from '@/contexts/AudioContext';
 import { SongItem } from '@/components/music/SongItem';
@@ -8,6 +8,13 @@ import { AlbumArt } from '@/components/music/AlbumArt';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useTheme } from 'next-themes';
 import type { Song } from '@/types';
 import { 
@@ -25,6 +32,7 @@ export default function MusicList() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [activeTab, setActiveTab] = useState('local');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -58,7 +66,7 @@ export default function MusicList() {
       }
     } else {
       // Load existing local songs
-      const local = getLocalSongs();
+      const local = await getLocalSongs();
       setLocalSongs(local);
     }
     
@@ -121,7 +129,7 @@ export default function MusicList() {
     if (newSongs.length > 0) {
       const updatedSongs = [...localSongs, ...newSongs];
       setLocalSongs(updatedSongs);
-      saveLocalSongs(updatedSongs);
+      await saveLocalSongs(updatedSongs);
       alert(`${newSongs.length} ta qo'shiq muvaffaqiyatli yuklandi!`);
     } else {
       alert('Hech qanday audio fayl topilmadi. Iltimos, audio fayllarni tanlang.');
@@ -166,10 +174,11 @@ export default function MusicList() {
     fileInputRef.current?.click();
   };
 
-  const handleClearLocal = () => {
+  const handleClearLocal = async () => {
     if (confirm('Barcha mahalliy musiqalarni o\'chirmoqchimisiz?')) {
       setLocalSongs([]);
-      saveLocalSongs([]);
+      await saveLocalSongs([]);
+      setSettingsOpen(false);
       alert('Barcha mahalliy musiqalar o\'chirildi');
     }
   };
@@ -221,36 +230,80 @@ export default function MusicList() {
           className="hidden"
         />
 
-        {/* Upload Controls */}
-        <div className="mb-6 flex gap-2 flex-wrap">
+        {/* Settings Button */}
+        <div className="mb-6">
           <Button 
-            onClick={handleUploadClick} 
-            disabled={uploading}
+            onClick={() => setSettingsOpen(true)} 
+            variant="outline"
             className="gap-2"
           >
-            {uploading ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                Yuklanmoqda...
-              </>
-            ) : (
-              <>
-                <Upload className="w-4 h-4" />
-                Musiqa yuklash
-              </>
-            )}
+            <Settings className="w-4 h-4" />
+            Sozlamalar
           </Button>
-          
-          {localSongs.length > 0 && (
-            <Button 
-              onClick={handleClearLocal} 
-              variant="outline"
-              size="sm"
-            >
-              Hammasini tozalash
-            </Button>
-          )}
         </div>
+
+        {/* Settings Dialog */}
+        <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center justify-between">
+                <span>Sozlamalar</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSettingsOpen(false)}
+                  className="h-6 w-6"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </DialogTitle>
+              <DialogDescription>
+                Mahalliy musiqa sozlamalari
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              <Button 
+                onClick={() => {
+                  setSettingsOpen(false);
+                  handleUploadClick();
+                }} 
+                disabled={uploading}
+                className="w-full gap-2"
+                size="lg"
+              >
+                {uploading ? (
+                  <>
+                    <Upload className="w-5 h-5 animate-spin" />
+                    Yuklanmoqda...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-5 h-5" />
+                    Musiqa yuklash
+                  </>
+                )}
+              </Button>
+              
+              {localSongs.length > 0 && (
+                <Button 
+                  onClick={handleClearLocal} 
+                  variant="destructive"
+                  className="w-full"
+                  size="lg"
+                >
+                  Hammasini tozalash ({localSongs.length} ta qo'shiq)
+                </Button>
+              )}
+              
+              <div className="text-sm text-muted-foreground text-center pt-2">
+                {localSongs.length === 0 
+                  ? 'Hozircha mahalliy musiqa yo\'q' 
+                  : `${localSongs.length} ta qo'shiq saqlangan`}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

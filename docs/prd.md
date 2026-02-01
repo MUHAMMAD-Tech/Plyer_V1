@@ -6,7 +6,7 @@
 Web Music Player
 
 ### 1.2 Application Description
-A web-based music player application that allows users to play audio files with a clean, modern interface. The player features a song list view and a dedicated player screen with playback controls, progress tracking, and continuous playback support.
+A web-based music player application that allows users to play audio files with a clean, modern interface. The player features a song list view and a dedicated player screen with playback controls, progress tracking, and continuous playback support. Music files are loaded from device storage and persist across sessions.
 
 ## 2. Core Features
 
@@ -16,15 +16,21 @@ A web-based music player application that allows users to play audio files with 
 - User must manually select a song to begin playback
 
 ### 2.2 Storage Permission Handling
-- On first installation/launch, show a one-time alert dialog
-- Alert message: \"Do you want to grant access to all music files in storage?\"
-- Two options: \"Yes\" or \"No\"
-- If user selects \"Yes\":
-  - Close the alert immediately
-  - Automatically load all music files from storage
-  - No need for user to manually select files one by one
-- If user selects \"No\":
-  - User can manually add music files later
+- Add a dedicated settings button in the interface
+- When user clicks the settings button:
+  - Open a small modal dialog window
+  - Apply blur effect to the background content behind the modal
+  - Modal contains:
+    - Permission request button: \"Grant Access to Music Files\"
+    - Clear/Reset button: \"Clear Music Library\"
+    - Close button (X) to dismiss the modal
+- When user clicks \"Grant Access to Music Files\":
+  - Request storage permission
+  - Automatically load all music files from device storage
+  - Files are loaded from device memory, not temporary storage
+- When user clicks \"Clear Music Library\":
+  - Remove all loaded music files from the application
+  - User can re-grant permission to reload files
 
 ### 2.3 Music List Display
 - Display all available audio files in a list format
@@ -60,9 +66,12 @@ A web-based music player application that allows users to play audio files with 
 - Playback persists when switching browser tabs
 - Audio continues when browser window is minimized
 
-### 2.6 Playback Memory
-- Remember last played song
+### 2.6 Playback Memory and Persistence
+- Remember last played song across sessions
 - Resume playback from last position when user returns to the application
+- Music files loaded from device storage persist in the application
+- Loaded music library is retained even after closing and reopening the site
+- Files are not temporary - they remain available until user manually clears them
 
 ## 3. User Interface Requirements
 
@@ -70,13 +79,21 @@ A web-based music player application that allows users to play audio files with 
 - Clean, minimal, modern design
 - Small, simple, compact icons for all controls
 - Smooth animations for screen transitions
+- Blur effect for modal backgrounds
 
-### 3.2 Theme Support
+### 3.2 Settings Modal Design
+- Compact, centered modal window
+- Blur background when modal is open
+- Clear close button (X) in modal header
+- Two action buttons: Permission and Clear
+- Responsive and mobile-friendly modal layout
+
+### 3.3 Theme Support
 - Dark Mode support
 - Light Mode support
 - Theme toggle option
 
-### 3.3 Responsive Design
+### 3.4 Responsive Design
 - Responsive layout adapting to all screen sizes
 - Mobile-friendly interface
 - Desktop-optimized layout
@@ -85,10 +102,18 @@ A web-based music player application that allows users to play audio files with 
 
 ### 4.1 Audio File Handling
 - Support common audio formats (MP3, WAV, OGG, etc.)
+- Load music files from device storage (not temporary storage)
+- Persist loaded music files across sessions
 - Graceful error handling if audio file is missing or cannot be loaded
 - Display appropriate error messages to users
 
-### 4.2 Performance
+### 4.2 Data Persistence
+- Store music file references persistently
+- Maintain music library state across browser sessions
+- Remember playback position and current song
+
+### 4.3 Performance
 - Smooth UI animations and transitions
 - Efficient audio loading and playback
 - Minimal latency when switching tracks
+- Optimized modal rendering with blur effects

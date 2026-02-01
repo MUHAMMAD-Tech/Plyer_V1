@@ -312,7 +312,7 @@ async function extractMetadata(file: File): Promise<{ title?: string; artist?: s
 }
 
 // Store audio file in IndexedDB
-export async function storeAudioFile(id: string, file: File): Promise<void> {
+export async function storeAudioFile(id: string, file: File | Blob): Promise<void> {
   if (!db) await initIndexedDB();
   
   return new Promise((resolve, reject) => {
@@ -326,7 +326,7 @@ export async function storeAudioFile(id: string, file: File): Promise<void> {
 }
 
 // Store image file in IndexedDB
-export async function storeImageFile(id: string, file: File): Promise<void> {
+export async function storeImageFile(id: string, file: File | Blob): Promise<void> {
   if (!db) await initIndexedDB();
   
   return new Promise((resolve, reject) => {
@@ -340,7 +340,7 @@ export async function storeImageFile(id: string, file: File): Promise<void> {
 }
 
 // Get audio file from IndexedDB
-export async function getAudioFile(id: string): Promise<File | null> {
+export async function getAudioFile(id: string): Promise<Blob | null> {
   if (!db) await initIndexedDB();
   
   return new Promise((resolve, reject) => {
@@ -354,7 +354,7 @@ export async function getAudioFile(id: string): Promise<File | null> {
 }
 
 // Get image file from IndexedDB
-export async function getImageFile(id: string): Promise<File | null> {
+export async function getImageFile(id: string): Promise<Blob | null> {
   if (!db) await initIndexedDB();
   
   return new Promise((resolve, reject) => {
@@ -395,8 +395,11 @@ export async function deleteImageFile(id: string): Promise<void> {
   });
 }
 
-// Save local songs metadata to localStorage
-export function saveLocalSongs(songs: Song[]): void {
+// Save local songs with file data to IndexedDB
+export async function saveLocalSongs(songs: Song[]): Promise<void> {
+  if (!db) await initIndexedDB();
+  
+  // Save metadata to localStorage
   const songsData = songs.map(song => ({
     id: song.id,
     title: song.title,
@@ -406,10 +409,68 @@ export function saveLocalSongs(songs: Song[]): void {
     file_name: song.file_name,
   }));
   localStorage.setItem(LOCAL_SONGS_KEY, JSON.stringify(songsData));
+  
+  // Save file blobs to IndexedDB
+  for (const song of songs) {
+    if (song.localAudioUrl && song.localAudioUrl.startsWith('blob:')) {
+      try {
+        const response = await fetch(song.localAudioUrl);
+        const blob = await response.blob();
+        await storeAudioFile(song.id, blob);
+      } catch (error) {
+        console.error(`Failed to store audio for ${song.id}:`, error);
+      }
+    }
+    
+    if (song.localAlbumArtUrl && song.localAlbumArtUrl.startsWith('blob:')) {
+      try {
+        const response = await fetch(song.localAlbumArtUrl);
+        const blob = await response.blob();
+        await storeImageFile(song.id, blob);
+      } catch (error) {
+        console.error(`Failed to store album art for ${song.id}:`, error);
+      }
+    }
+  }
 }
 
-// Get local songs metadata from localStorage
-export function getLocalSongs(): Song[] {
+// Get local songs metadata from localStorage and restore URLs from IndexedDB
+export async function getLocalSongs(): Promise<Song[]> {
+  const data = localStorage.getItem(LOCAL_SONGS_KEY);
+  if (!data) return [];
+  
+  try {
+    const songs: Song[] = JSON.parse(data);
+    
+    // Restore audio and album art URLs from IndexedDB
+    for (const song of songs) {
+      try {
+        const audioBlob = await getAudioFile(song.id);
+        if (audioBlob) {
+          song.localAudioUrl = URL.createObjectURL(audioBlob);
+        }
+      } catch (error) {
+        console.error(`Failed to restore audio for ${song.id}:`, error);
+      }
+      
+      try {
+        const imageBlob = await getImageFile(song.id);
+        if (imageBlob) {
+          song.localAlbumArtUrl = URL.createObjectURL(imageBlob);
+        }
+      } catch (error) {
+        console.error(`Failed to restore album art for ${song.id}:`, error);
+      }
+    }
+    
+    return songs;
+  } catch {
+    return [];
+  }
+}
+
+// Synchronous version for backward compatibility
+export function getLocalSongsSync(): Song[] {
   const data = localStorage.getItem(LOCAL_SONGS_KEY);
   if (!data) return [];
   
@@ -422,9 +483,9 @@ export function getLocalSongs(): Song[] {
 
 // Delete local song
 export async function deleteLocalSong(id: string): Promise<void> {
-  const songs = getLocalSongs();
+  const songs = await getLocalSongs();
   const updatedSongs = songs.filter(s => s.id !== id);
-  saveLocalSongs(updatedSongs);
+  await saveLocalSongs(updatedSongs);
   
   await deleteAudioFile(id);
   await deleteImageFile(id);
