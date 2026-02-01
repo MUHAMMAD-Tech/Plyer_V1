@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Music, Moon, Sun, Upload, Settings, X } from 'lucide-react';
+import { Music, Moon, Sun, Upload, Settings, X, SkipBack, SkipForward, Play, Pause } from 'lucide-react';
 import { songsApi } from '@/db/api';
 import { useAudio } from '@/contexts/AudioContext';
 import { SongItem } from '@/components/music/SongItem';
@@ -26,7 +26,7 @@ import {
 export default function MusicList() {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
-  const { currentSong, playSong, isPlaying } = useAudio();
+  const { currentSong, playSong, isPlaying, togglePlayPause, playNext, playPrevious } = useAudio();
   const [onlineSongs, setOnlineSongs] = useState<Song[]>([]);
   const [localSongs, setLocalSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
@@ -384,25 +384,75 @@ export default function MusicList() {
 
         {/* Now Playing Bar */}
         {currentSong && (
-          <div
-            onClick={() => navigate('/player')}
-            className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 cursor-pointer hover:bg-accent/5 transition-colors"
-          >
-            <div className="max-w-4xl mx-auto flex items-center gap-4">
-              <AlbumArt
-                src={currentSong.localAlbumArtUrl || currentSong.album_art_url}
-                alt={currentSong.title}
-                seedText={currentSong.id}
-                className="w-12 h-12 rounded-md"
-                showIcon={false}
-              />
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold truncate">{currentSong.title}</p>
-                <p className="text-sm text-muted-foreground truncate">{currentSong.artist}</p>
+          <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-lg">
+            <div className="max-w-4xl mx-auto px-4 py-3">
+              <div className="flex items-center gap-3">
+                {/* Album Art - Clickable to open player */}
+                <div 
+                  onClick={() => navigate('/player')}
+                  className="cursor-pointer"
+                >
+                  <AlbumArt
+                    src={currentSong.localAlbumArtUrl || currentSong.album_art_url}
+                    alt={currentSong.title}
+                    seedText={currentSong.id}
+                    className="w-12 h-12 rounded-md"
+                    showIcon={true}
+                  />
+                </div>
+
+                {/* Song Info - Clickable to open player */}
+                <div 
+                  onClick={() => navigate('/player')}
+                  className="flex-1 min-w-0 cursor-pointer"
+                >
+                  <p className="font-semibold truncate">{currentSong.title}</p>
+                  <p className="text-sm text-muted-foreground truncate">{currentSong.artist}</p>
+                </div>
+
+                {/* Playback Controls */}
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      playPrevious();
+                    }}
+                    className="h-9 w-9"
+                  >
+                    <SkipBack className="w-5 h-5" />
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePlayPause();
+                    }}
+                    className="h-10 w-10"
+                  >
+                    {isPlaying ? (
+                      <Pause className="w-6 h-6" fill="currentColor" />
+                    ) : (
+                      <Play className="w-6 h-6" fill="currentColor" />
+                    )}
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      playNext();
+                    }}
+                    className="h-9 w-9"
+                  >
+                    <SkipForward className="w-5 h-5" />
+                  </Button>
+                </div>
               </div>
-              {isPlaying && (
-                <Music className="w-5 h-5 text-primary animate-pulse" />
-              )}
             </div>
           </div>
         )}

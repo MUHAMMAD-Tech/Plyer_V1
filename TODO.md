@@ -15,15 +15,19 @@
 - [x] Step 12: Add automatic gradient album art for songs without images
 - [x] Step 13: Fix song persistence and add settings dialog
 - [x] Step 14: Fix React version mismatch error
-  - [x] Update React to 18.3.1
-  - [x] Update React-DOM to 18.3.1
-  - [x] Update @types/react to 18.3.27
-  - [x] Update @types/react-dom to 18.3.1
-  - [x] Clear Vite cache
+- [x] Step 15: Enhance Now Playing bar with playback controls
+  - [x] Add music icon to album art
+  - [x] Add Skip Back button
+  - [x] Add Play/Pause button
+  - [x] Add Skip Forward button
+  - [x] Make album art and song info clickable to open player
+  - [x] Prevent event bubbling on control buttons
 
 ## Notes
-- Songs now persist properly across app restarts
-- Audio files and album art stored in IndexedDB as blobs
-- Settings dialog with backdrop blur effect
-- React version mismatch fixed (was 18.0.0 with types 19.2.2)
+- Now Playing bar has full playback controls
+- Album art shows music icon when no image
+- Skip buttons for previous/next track
+- Play/Pause toggle button
+- Clicking album art or song info opens full player
+- Control buttons don't trigger navigation
 - All UI text in Uzbek language
